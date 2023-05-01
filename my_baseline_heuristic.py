@@ -1,5 +1,6 @@
 import random
 import math
+import pdb
 
 USERWIN = -1
 BOTWIN = 1
@@ -29,8 +30,9 @@ class Bot:
         Initialize the bot.
 
         Args:
-        numberOfGameTurns: The number of game turns that have been played.
+        numberOfGameTurns: The number of game turns that will be played.
         """
+        pdb.set_trace()
         self.resetBot(numberOfGameTurns)
 
     def resetBot(self, numberOfGameTurns):
@@ -38,7 +40,7 @@ class Bot:
         Reset the bot.
 
         Args:
-        numberOfGameTurns: The number of game turns that have been played.
+        numberOfGameTurns: The number of game turns that will be played.
         """
         self.numberOfGameTurns = numberOfGameTurns
         self.userMoves = []
@@ -46,6 +48,7 @@ class Bot:
         self.botMoves = []
         self.wins = []
         self.gameTurn = 0
+        pdb.set_trace()
         self.initPredictors()
         self.updateBotPrediction()
 
@@ -56,6 +59,7 @@ class Bot:
         Args:
         userMove: The user's move.
         """
+        pdb.set_trace()
         self.userMoves.append(userMove)
 
         if len(self.userMoves) > 1:
@@ -90,7 +94,11 @@ class Bot:
         else:
             botPrediction = 1
 
-        self.botMoves[self.gameTurn] = botPrediction
+        if len(self.botMoves) <= self.gameTurn:
+            assert len(self.botMoves) == self.gameTurn
+            self.botMoves.append(botPrediction)
+        else:
+            self.botMoves[self.gameTurn] = botPrediction
 
     def aggregateExperts(self):
         """
@@ -238,15 +246,15 @@ class Predictor:
         if self.dataType == REGULAR_DATA_SERIES:
             prediction = self.childPredictor(userMoves)
         elif self.dataType == FLIPPING_DATA_SERIES:
-            prediction = self.childPredictor(userMovesFlipping) * userMoves[-1] * -1
+            prediction = self.childPredictor(userMovesFlipping) * userMoves[-1] * -1 if userMoves else 0
         elif self.dataType == USER_REACTIVE:
             prediction = (
-                self.childPredictor(userMovesFlipping, wins) * userMoves[-1] * -1
+                self.childPredictor(userMovesFlipping, wins) * userMoves[-1] * -1 if userMoves else 0
             )
         elif self.dataType == USER_REACTIVE_REG_DATA:
             prediction = self.childPredictor(userMoves, wins)
 
-        if math.isnan(prediction):
+        if not prediction or math.isnan(prediction):
             prediction = 0
 
         self.predictionsHistory.append(prediction)
@@ -261,14 +269,14 @@ class BiasPredictor(Predictor):
       memoryLength: The length of the history to look at.
     """
 
-    def __init__(self, memoryLength):
+    def __init__(self, memoryLength, dataType):
         """
         Initialize the predictor.
 
         Args:
           memoryLength: The length of the history to look at.
         """
-        super().__init__(memoryLength, REGULAR_DATA_SERIES)
+        super().__init__(memoryLength, dataType)
 
     def childPredictor(self, data):
         """
@@ -282,10 +290,13 @@ class BiasPredictor(Predictor):
         """
         historyMean = 0
         cnt = 0
-        while cnt < self.memoryLength and (data.length - cnt) > 0:
-            historyMean += data[data.length - cnt - 1]
+        while cnt < self.memoryLength and (len(data) - cnt) > 0:
+            historyMean += data[len(data) - cnt - 1]
             cnt += 1
-        historyMean /= cnt
+        try:
+            historyMean /= cnt
+        except:
+            return 0
         return historyMean
 
 
@@ -297,14 +308,14 @@ class PatternPredictor(Predictor):
         memoryLength: The length of the history to look at.
     """
 
-    def __init__(self, memoryLength):
+    def __init__(self, memoryLength, dataType):
         """
         Initialize the predictor.
 
         Args:
         memoryLength: The length of the history to look at.
         """
-        super().__init__(memoryLength, REGULAR_DATA_SERIES)
+        super().__init__(memoryLength, dataType)
 
     def childPredictor(self, data):
         """
@@ -321,33 +332,35 @@ class PatternPredictor(Predictor):
         score = 0
         ind = 0
 
-        if data.length < self.memoryLength:
+        if len(data) < self.memoryLength:
             return 0
 
         def rotatePattern():
             temp = pattern.pop()
             pattern.insert(0, temp)
 
-            # Extract history length
-            pattern = data.slice(-self.memoryLength)
-            prediction = pattern[
-                0
-            ]  # The prediction is simply the element in the pattern (i.e. the first in this extracted array)
+        # Extract history length
+        pattern = data[:-self.memoryLength]
 
-            # Start right before the pattern
-            ind = data.length - self.memoryLength - 1
-            while ind >= math.max(
-                0, data.length - 3 * self.memoryLength
-            ):  # Check maximum 2 appearances of the full pattern
-                if pattern[pattern.length - 1] == data[ind]:
-                    score += 1
-                rotatePattern()
-                ind -= 1
+        if len(pattern) == 0:
+            return 0
 
-            score /= (
-                2 * self.memoryLength
-            )  # The maximum score is achieved when the pattern repeats itself twice
-            return prediction * score
+        prediction = pattern[0]  # The prediction is simply the element in the pattern (i.e. the first in this extracted array)
+
+        # Start right before the pattern
+        ind = len(data) - self.memoryLength - 1
+        while ind >= max(
+            0, len(data) - 3 * self.memoryLength
+        ):  # Check maximum 2 appearances of the full pattern
+            if pattern[len(pattern) - 1] == data[ind]:
+                score += 1
+            rotatePattern()
+            ind -= 1
+
+        score /= (
+            2 * self.memoryLength
+        )  # The maximum score is achieved when the pattern repeats itself twice
+        return prediction * score
 
 
 class ReactivePredictor(Predictor):
@@ -358,18 +371,18 @@ class ReactivePredictor(Predictor):
         memoryLength: The length of the history to look at.
     """
 
-    def __init__(self, memoryLength):
+    def __init__(self, memoryLength, dataType):
         """
         Initialize the predictor.
 
         Args:
         memoryLength: The length of the history to look at.
         """
-        super().__init__(memoryLength, REGULAR_DATA_SERIES)
+        super().__init__(memoryLength, dataType)
 
         self.stateMachine = [0] * (2 ** (2 * memoryLength - 1))
         self.indMap = []
-        for i in range(2 * memoryLength):
+        for i in range(2 * memoryLength, -1, -1):
             self.indMap.append(2**i)
 
     def childPredictor(self, moves, wins):
@@ -383,38 +396,94 @@ class ReactivePredictor(Predictor):
         Returns:
         The prediction.
         """
-        lastState = []
+        if len(moves) == 0:
+            return 0
+        
+        # Get the last `memoryLength` moves and wins
+        lastMoves = moves[-self.memoryLength:] if len(moves) >= self.memoryLength else moves
+        lastWins = wins[-self.memoryLength:] if len(wins) >= self.memoryLength else wins
+
+        # Concat the moves and wins
+        lastState = lastWins + lastMoves
+
+        # Get the index of the last state
         lastStateInd = 0
-        for i in range(self.memoryLength):
-            lastState.append(wins[i])
-            lastState.append(moves[i])
-            lastStateInd += self.indMap[i]
+
+        for i in range(len(lastState)):
+            if lastState[i] == 1:
+                lastStateInd += 2 ** i
+
+        # Ensure that the lastStateInd index is within range
+        if lastStateInd >= len(self.stateMachine):
+            lastStateInd = len(self.stateMachine) - 1
+
+        # Get the result of the last state
+        lastStateResult = lastMoves[-1] if lastMoves else 0
 
         # Update the state machine.
         if self.stateMachine[lastStateInd] == 0:  # No prior info
-            self.stateMachine[lastStateInd] = moves[-1] * 0.3
+            self.stateMachine[lastStateInd] = lastStateResult * 0.3
         elif (
-            self.stateMachine[lastStateInd] == moves[-1] * 0.3
+            self.stateMachine[lastStateInd] == lastStateResult * 0.3
         ):  # We've been here before so strengthen prediction
-            self.stateMachine[lastStateInd] = moves[-1] * 0.8
+            self.stateMachine[lastStateInd] = lastStateResult * 0.8
         elif (
-            self.stateMachine[lastStateInd] == moves[-1] * 0.8
+            self.stateMachine[lastStateInd] == lastStateResult * 0.8
         ):  # We've been here before so strengthen prediction
-            self.stateMachine[lastStateInd] = moves[-1] * 1
-        elif self.stateMachine[lastStateInd] == moves[-1] * 1:  # Maximum confidence
-            self.stateMachine[lastStateInd] = moves[-1] * 1
+            self.stateMachine[lastStateInd] = lastStateResult * 1
+        elif self.stateMachine[lastStateInd] == lastStateResult * 1:  # Maximum confidence
+            self.stateMachine[lastStateInd] = lastStateResult * 1
         else:  # Changed his mind - so go back to 0
             self.stateMachine[lastStateInd] = 0
 
-        # What is the current state
-        currentState = []
-        currentStateInd = 0
-        for i in range(self.memoryLength):
-            currentState.append(wins[i + 1])
-            currentState.append(moves[i + 1])
-            currentStateInd += self.indMap[i]
+        # Get the current `memoryLength` moves and wins
+        currentMoves = moves[-self.memoryLength + 1:] if len(moves) >= self.memoryLength else moves
+        currentWins = wins[-self.memoryLength:] if len(wins) >= self.memoryLength else wins
 
+        # Concat the moves and wins
+        currentState = currentWins + currentMoves
+
+        # Get the index of the current state
+        currentStateInd = 0
+        for i in range(len(currentState)):
+            if currentState[i] == 1:
+                currentStateInd += 2 ** i
+    
+        # Ensure that the lastStateInd index is within range
+        if currentStateInd >= len(self.stateMachine):
+            currentStateInd = len(self.stateMachine) - 1
+
+        # Get the prediction and score
         predictionAndScore = self.stateMachine[currentStateInd]
 
-        # print('last state', lastState, ', last ind', lastStateInd, '    current state', currentState, '  current ind', currentStateInd, '    state machine:', self.stateMachine)
-        return predictionAndScore
+        # Print the last state, last index, current state, current index, and state machine
+        # print('last state', lastState, ', last ind', lastStateInd, '    current state', currentState, '  current ind', currentStateInd, '    state machine:', this.stateMachine)
+
+        return predictionAndScore if predictionAndScore else 0
+    
+
+def gameLoop():
+    numberOfGameTurns = 20
+    bot = Bot(numberOfGameTurns)
+    print("Welcome to the game! You are playing against the bot. Enter 1 for rock, 2 for paper, or 3 for scissors. Good luck!")
+    while bot.gameTurn < numberOfGameTurns:
+        userMove = int(input("Enter your move: "))
+        if userMove not in [1, 2, 3]:
+            print("Invalid move. Please enter 1 for rock, 2 for paper, or 3 for scissors.")
+            continue
+        bot.updateUserMove(userMove - 2)
+        botPrediction = bot.getBotPrediction()
+        if botPrediction == -1:
+            botMove = "rock"
+        elif botPrediction == 0:
+            botMove = "paper"
+        elif botPrediction == 1:
+            botMove = "scissors"
+        print(f"The bot played {botMove}.")
+        if bot.wins[-1] == USERWIN:
+            print("You won!")
+        elif bot.wins[-1] == BOTWIN:
+            print("The bot won!")
+        else:
+            print("It's a tie!")
+    print("Game over.")
