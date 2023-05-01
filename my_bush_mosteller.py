@@ -7,7 +7,7 @@ class Action(Enum):
     Core actions, can be LEFT or RIGHT
     """
 
-    L = 0  # Left
+    L = -1  # Left
     R = 1  # Right
 
 
@@ -38,7 +38,7 @@ def random_choice(l_prob, r_prob):
     return Action.R
 
 
-class BushMosteller:
+class BushMostellerBot:
     """
     A player that is based on Bush Mosteller reinforced learning algorithm, it
     decides what it will play only depending on its own previous payoffs.
@@ -52,6 +52,7 @@ class BushMosteller:
 
     def __init__(
         self,
+        numberOfGameTurns = 20,
         l_prob: float = 0.5,
         r_prob: float = 0.5,
         aspiration_level_divider: float = 2.0,
@@ -83,8 +84,9 @@ class BushMosteller:
 
         self._stimulus = 0.0
         self._learning_rate = learning_rate
+        self.numberOfGameTurns = numberOfGameTurns
 
-    def stimulus_update(self, my_move, opponent_move):
+    def updateUserMove(self, opponent_move):
         """
         Updates the stimulus attribute based on the opponent's history. Used by
         the strategy.
@@ -93,7 +95,7 @@ class BushMosteller:
             The current opponent
         """
 
-        my_payoff = 1 if (my_move != opponent_move) else 0
+        my_payoff = 1 if (self.prev_move == opponent_move) else 0
 
         self._stimulus = (my_payoff - self._aspiration_level) / abs(
             (1 - self._aspiration_level)
@@ -104,8 +106,9 @@ class BushMosteller:
         if self._stimulus < -1:
             self._stimulus = -1
 
+    def updateBotPrediction(self):
         # Updates probability following previous choice L
-        if my_move == Action.L:
+        if self.prev_move == Action.L.value:
             if self._stimulus >= 0:
                 self._l_prob += (
                     self._learning_rate * self._stimulus * (1 - self._l_prob)
@@ -118,7 +121,7 @@ class BushMosteller:
             self._r_prob = 1 - self._l_prob
 
         # Updates probability following previous choice R
-        elif my_move == Action.R:
+        elif self.prev_move == Action.R.value:
             if self._stimulus >= 0:
                 self._r_prob += (
                     self._learning_rate * self._stimulus * (1 - self._r_prob)
@@ -130,7 +133,9 @@ class BushMosteller:
             # Normalize left probability
             self._l_prob = 1 - self._r_prob
 
-    def strategy(self) -> Action:
+
+    def getBotPrediction(self) -> Action:
         """Actual strategy definition that determines player's action."""
 
-        return random_choice(self._l_prob, self._r_prob)
+        self.prev_move = random_choice(self._l_prob, self._r_prob).value
+        return self.prev_move

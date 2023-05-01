@@ -11,7 +11,7 @@ BOT_REACTIVE = 4
 USER_REACTIVE_REG_DATA = 5
 
 
-class Bot:
+class BaselineBot:
     """
     This class represents a bot that can play a game. The bot has a number of predictors that it can use to make predictions about the next move of the opponent.
 
@@ -32,7 +32,6 @@ class Bot:
         Args:
         numberOfGameTurns: The number of game turns that will be played.
         """
-        pdb.set_trace()
         self.resetBot(numberOfGameTurns)
 
     def resetBot(self, numberOfGameTurns):
@@ -48,7 +47,6 @@ class Bot:
         self.botMoves = []
         self.wins = []
         self.gameTurn = 0
-        pdb.set_trace()
         self.initPredictors()
         self.updateBotPrediction()
 
@@ -59,7 +57,6 @@ class Bot:
         Args:
         userMove: The user's move.
         """
-        pdb.set_trace()
         self.userMoves.append(userMove)
 
         if len(self.userMoves) > 1:
@@ -460,30 +457,3 @@ class ReactivePredictor(Predictor):
         # print('last state', lastState, ', last ind', lastStateInd, '    current state', currentState, '  current ind', currentStateInd, '    state machine:', this.stateMachine)
 
         return predictionAndScore if predictionAndScore else 0
-    
-
-def gameLoop():
-    numberOfGameTurns = 20
-    bot = Bot(numberOfGameTurns)
-    print("Welcome to the game! You are playing against the bot. Enter 1 for rock, 2 for paper, or 3 for scissors. Good luck!")
-    while bot.gameTurn < numberOfGameTurns:
-        userMove = int(input("Enter your move: "))
-        if userMove not in [1, 2, 3]:
-            print("Invalid move. Please enter 1 for rock, 2 for paper, or 3 for scissors.")
-            continue
-        bot.updateUserMove(userMove - 2)
-        botPrediction = bot.getBotPrediction()
-        if botPrediction == -1:
-            botMove = "rock"
-        elif botPrediction == 0:
-            botMove = "paper"
-        elif botPrediction == 1:
-            botMove = "scissors"
-        print(f"The bot played {botMove}.")
-        if bot.wins[-1] == USERWIN:
-            print("You won!")
-        elif bot.wins[-1] == BOTWIN:
-            print("The bot won!")
-        else:
-            print("It's a tie!")
-    print("Game over.")
