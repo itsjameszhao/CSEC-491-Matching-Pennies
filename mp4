@@ -1,0 +1,16 @@
+────────────────────────────────────────────────────────────── user ───────────────────────────────────────────────────────────────
+Generate me HTML code to view a link of an MP4 file called MP4 in the same folder
+───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+──────────────────────────────────────────────────────────── assistant ────────────────────────────────────────────────────────────
+Here is the HTML code to view an MP4 file called "MP4" in the same folder:                                                         
+
+                                                                                                                                   
+ <video controls>                                                                                                                  
+   <source src="MP4.mp4" type="video/mp4">                                                                                         
+   Your browser does not support the video tag.                                                                                    
+ </video>                                                                                                                          
+                                                                                                                                   
+
+This code creates a video player with controls and a source tag that points to the "MP4.mp4" file in the same folder. If the       
+browser does not support the video tag, it will display a message saying so.                                                       
+───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
